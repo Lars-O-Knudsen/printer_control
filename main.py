@@ -1,5 +1,5 @@
 from web.server import webserver
-from web import routes
+from . import routes
 import gc
 gc.collect()    
 
@@ -11,7 +11,7 @@ from machine import Pin
 
 from filament_checker import FilamentChecker
 from power_controller import PowerController
-from sys_params import sysParams
+from mipy_lib.sys_params import sysParams
 gc.collect()
 
 sysParams['simulationMode'] = True

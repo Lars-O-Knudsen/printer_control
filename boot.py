@@ -1,15 +1,15 @@
 # boot.py -- run on boot-up
 from sys import path
-path.append("lib")
+path.append("mipy_lib")
 path.append("web")
 import micropython
 import uasyncio as asyncio
 import time # type: ignore
-from lib.ntptime_tz import settime_tz
+from mipy_lib.ntptime_tz import settime_tz
 #import ntptime_tz
 import logging
 # from lib.tail_log_handler import TailLogHandler
-from lib.log_retainer import LogRetainHandler, LogRetainFilter
+from mipy_lib.log_retainer import LogRetainHandler, LogRetainFilter
 
 micropython.alloc_emergency_exception_buf(100)
 
@@ -36,7 +36,7 @@ def configureLogging():
 
 
 def connectWifi():
-    from lib.veil import Veil
+    from mipy_lib.veil import Veil
     # network.hostname("")
     if not wlan.isconnected():
         print('connecting to network...')
