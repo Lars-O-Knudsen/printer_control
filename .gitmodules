@@ -1,0 +1,3 @@
+[submodule "mipy_lib"]
+	path = mipy_lib
+	url = https://github.com/lars-o-knudsen/mipy_lib
