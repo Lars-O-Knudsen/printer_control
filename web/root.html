@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>T3 Buddy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="text/javascript" src="web/apiutils.js"></script>
+    <link rel="stylesheet" href="web/styles.css" />
+    <script>
+      opi_hdrs = {"Content-Type": "application/json", "X-Api-Key": "MmVRNXfxomie8fotBAFZyuR4ZBq7HrhIhlaL_2pVU3A"}
+      opi_url = "http://opi3b:5000/api/system/commands"
+
+
+      function toggleMode() {
+        console.log("Toggle simulation mode, current: ", document.getElementById("btnToggleMode").textContent )
+        postData("/api/toggleMode", {}, (ok, reply) => {
+          console.log(ok,reply)
+          if (ok) {
+            document.getElementById("btnToggleMode").textContent = reply.mode
+          }
+        })
+      }
+
+      function changePower(state) {
+        console.log("Change power:",state)
+        state = state.toUpperCase()
+        postData("/api/powerControl", {powerState: state}, (ok, reply) => {
+          console.log(ok,reply)
+          if (ok) {
+            document.getElementById("powerState").value = reply.powerState
+          }
+        })
+      }
+      function sendCommand(cmd) {
+        console.log("Send Command", cmd)
+        postData("/api/filamentState", {"command": cmd}, (ok, reply) => {
+          if (ok) {
+            console.log("reply from server:",reply)
+            // document.getElementById("filamentState").value = reply.state
+            updateState(reply.data)
+          }
+        })
+      }
+
+      function updateState(data) {
+        document.getElementById("filamentState").value = data.filamentState
+                document.getElementById("jobState").value = data.jobState
+                console.log(data)
+      }
+      function loadState() {
+        // get current state of affairs from server
+        btnRefresh = document.getElementById("btnRefresh")
+        numDone=0
+        btnRefresh.disabled = true
+        function setBtn() {
+          if (numDone == 2) btnRefresh.disabled = false
+          else numDone += 1
+        }
+        loadData("/api/filamentState", (ok, data) => {
+              if (ok)
+                updateState(data)
+              setBtn()
+            })
+        loadData("/api/powerControl", (ok, data) => {
+              if (ok)
+                document.getElementById("powerState").value = data.powerState
+              setBtn()
+            })
+        loadData("/api/mode", (ok, data) => {
+              if (ok)
+                console.log("Mode>",data)
+                document.getElementById("btnToggleMode").textContent = data.mode
+              setBtn()
+            })
+      }
+
+      function onBodyLoaded() {
+        console.log("On load")
+        loadState()
+        loadContentTo("web/comp/log.html","logPanel")
+      }
+    </script>
+  </head>
+  <body onload="onBodyLoaded()">
+    <header class="header centered container">
+      <h1>T3 Buddy</h1>
+    </header>
+    <div class="panel container">
+      Current Mode:
+      <button id="btnToggleMode" onclick="toggleMode()"></button>
+    </div>
+    <div class="row container">
+      <div class="column50 panel" style="height: 250px;">
+        <h3>Filament/Job</h3>
+        <section>
+          <form>
+            <label style="width:150px" for="filamentState">Filament state:</label>
+            <input type="text" readonly id="filamentState" style="width: 120px" />
+            <br />
+            <label style="width:150px" for="jobState">Job state:</label>
+            <input type="text" readonly id="jobState" style="width: 120px" />
+            <br />
+          </form>
+          <button id="btnPause" onclick="sendCommand('pause')">PAUSE</button>
+          <button id="btnResume" disabled="true" onclick="sendCommand('resume')">RESUME</button>
+        </section>
+      </div>
+      <div class="column50 panel"  style="height: 250px;">
+        <h3>Printer Power</h3>
+        <section>
+          <form>
+            <label for="powerState">Current state:</label>
+            <input type="text" readonly id="powerState" style="width: 80px" />
+            <br />
+          </form>
+          <button id="btnPowerOn" onclick="changePower('ON')">Power ON</button>
+          <button id="btnPowerOff" onclick="changePower('OFF')">Power OFF</button>
+        </section>
+      </div>
+    </div>
+    <button id="btnRefresh" onclick="loadState()">Refresh</button>
+    <div class="panel" id="logPanel">
+    </div>
+  </body>
+
+  </body>
+</html>

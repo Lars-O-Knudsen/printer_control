@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px;
+        font-weight: bold;
+        font-size: large;
+        margin: 10px;
+      }
+      .pump {
+        float: left;
+        width: 49.6%;
+        padding: 20px;
+        margin: 2px;
+        border: #f1f1f1 solid;
+        overflow: hidden;
+      }
+      .valve {
+        float: right;
+        width: 49.6%;
+        padding: 20px;
+        margin: 2px 0px 2px 0px;
+        border: #f1f1f1 solid;
+        overflow: hidden;
+      }
+      .plan {
+        float: left;
+        width: 100%;
+        padding: 20px;
+        margin: 2px;
+        border: #f1f1f1 solid;
+        overflow: auto;
+      }
+      .planElement {
+        width: 33%;
+        min-width: 200px;
+        margin: 2px;
+        padding: 2px 2px 2px 20px;
+        border: #f1f1f1 solid 2px;
+        float: left;
+      }
+      .sysinfo {
+        /*float: left;*/
+        display: flex;
+        flex-flow: row wrap;
+        justify-content: space-around;
+        align-items: baseline;
+        /* height: 140px; */
+        width: 100%;
+        /* padding: 10px; */
+        margin: 2px;
+        /* border: #f1f1f1 solid; */
+        overflow: hidden;
+      }
+      .sysinfo-fieldset {
+        width: 40%;
+        height: 100%;
+        white-space: nowrap;
+        /* flex: 1; */
+      }
+      .sysinfo-label {
+        width: 200px;
+        display: inline-block;
+        text-align: right;
+        margin-right: 5px;
+      }
+      .log {
+        /*float: left;*/
+        width: 100%;
+        padding: 10px;
+        margin: 2px;
+        border: #f1f1f1 solid;
+        overflow: hidden;
+      }
+      .logText {
+        float: left;
+        width: 100%;
+        padding: 10px;
+        margin: 2px;
+        border: #f1f1f1 solid;
+      }
+      .text {
+        float: left;
+        width: 100%;
+        padding: 10px;
+        margin: 2px;
+        border: #f1f1f1 solid;
+        overflow: hidden;
+      }
+      .info {
+        border: none;
+      }
+      .right {
+        float: right;
+      }
+      @media only screen and (max-width: 500px) {
+        /* For mobile phones: */
+        .pump,
+        .valve .planElement {
+          width: 100%;
+        }
+      }
+    </style>
+    <script>
+      function dateToISO(d) {
+        const y = String(d.getFullYear())
+        const m = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate() + 1).padStart(2, "0")
+        return `${y}-${m}-${day}`
+      }
+
+      function onBodyLoaded() {
+        loadDataTo("/api/log", "logText")
+        document.getElementById("planStartDate").value = dateToISO(new Date())
+      }
+
+      function blockButtons(showCounter) {
+        const btnPump = document.getElementById("btnTogglePump")
+        const btnVentil = document.getElementById("btnToggleValve")
+        setTimeout(() => {
+          btnPump.value = " ... "
+          btnVentil.value = " ... "
+          btnVentil.disabled = true
+          btnPump.disabled = true
+        }, 25) // need delay for disabled not to interfere with backend call
+        if (showCounter) {
+          let intvalCount = 0
+          intval = setInterval(() => {
+            intvalCount += 1
+            btnVentil.value = " .. " + intvalCount + " .. "
+          }, 1000)
+        }
+      }
+
+      async function loadData(url, cb) {
+        fetch(url)
+          .then((resp) => resp.text())
+          .then((text) => cb(true, text))
+          .catch((error) => {
+            alert("Noget gik galt under indlæsning af data fra " + url + "\n" + error)
+            cb(false, undefined)
+          })
+      }
+
+      function loadDataTo(url, id) {
+        loadData(url, (ok, text) => {
+          if (ok) document.getElementById(id).innerHTML = text
+        })
+      }
+
+      function postData(url, data, cb) {
+        fetch(url, {
+          method: "POST",
+          mode: "same-origin", // no-cors, *cors, same-origin
+          cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+          // credentials: "same-origin", // include, *same-origin, omit
+          headers: {
+            "Content-Type": "application/json",
+          },
+          redirect: "follow", // manual, *follow, error
+          referrerPolicy: "no-referrer",
+          body: JSON.stringify(data),
+        })
+          .then((resp) => resp.json())
+          .then((json) => cb(true, json))
+          .catch((error) => {
+            alert("Noget gik galt under postering af data til " + url + "\n" + error)
+            cb(false, error)
+          })
+      }
+
+      function planToForm(plan) {}
+      function formToPlan() {
+        const plan = {
+          startDate: document.getElementById("planStartDate").value,
+          steps: [],
+        }
+        for (i = 1; i < 4; i++) {
+          const step = {
+            step: i,
+            valvePos: document.querySelector('input[name="ventilPos' + i + '"]:checked').value,
+            startTime: document.getElementById("startTime" + i).value,
+            endTime: document.getElementById("endTime" + i).value,
+          }
+          if (i == 1 && (step.startTime + step.endTime).trim() == "") {
+            // there is neither start- nor endTime in first step -> error
+            alert("Der skal angives mindst en start- eller sluttid i Trin 1")
+            return undefined
+          }
+          plan.steps.push(step)
+        }
+        return plan
+      }
+
+      function sendPlan(mode) {
+        let data = {
+          mode: mode,
+          plan: formToPlan(),
+        }
+        if (data.plan != undefined)
+          postData("/api/plan", data, (resp) => {
+            // process reponse here
+            console.log("Response", resp.responseText)
+          })
+      }
+
+      function submitAutoRun(mode) {
+        let data = {
+          mode: mode,
+        }
+        if (mode == "run") {
+          const startTime = document.getElementById("startTime")
+          const runFor = document.getElementById("runFor")
+          if (runFor.value == "") {
+            alert("Der skal angives hvor lang tid pump skal køre")
+            return
+          }
+          data.startTime = startTime.value
+          data.runFor = runFor.value
+        }
+
+        postData("/api/autoRun", data, (success, resp) => {
+          console.log("Response", resp)
+          if (!success || resp.status != "OK") {
+            alert(resp.message)
+            return
+          }
+          if (data.mode == "cancel") {
+            document.getElementById("btnAutoRun").disabled = false
+            startTime.value = ""
+            runFor.value = ""
+          } else {
+            document.getElementById("btnAutoRun").disabled = true
+            startTime.value = resp.startTime
+            runFor.value = resp.runFor
+          }
+        })
+      }
+    </script>
+  </head>
+  <body onload="onBodyLoaded()">
+    <header class="header">
+      <h1>T3 Printer Companion</h1>
+    </header>
+
+    <div>
+      <form action="api/togglePump" method="post">
+        <h1>Pumpe</h1>
+        <label for="pumpStatus">Status:</label>
+        <input id="pumpStatus" readonly class="info" value="{%pumpStatus%}" />
+        <input type="submit" id="btnTogglePump" value="Toggle Pumpe" onclick="blockButtons(false)" />
+      </form>
+    </div>
+
+    <div class="valve">
+      <form action="api/toggleVentil" method="post">
+        <h1>Ventil</h1>
+        <label for="valvePosition">Position:</label>
+        <input id="valvePosition" readonly class="info" value="{%valvePosition%}" />
+        <input type="submit" id="btnToggleValve" value="Toggle Ventil" onclick="blockButtons(true)" />
+      </form>
+    </div>
+
+    <div class="plan">
+      <h1>Automatisk sluk</h1>
+      <form id="autoSluk">
+        <p>
+          <label id="alreadyScheduled" style="display: none; font-weight: bold; color: red">
+            NB! Der er igangsat en automatisk kørsel. <br />
+            Fra klokken {startTime} og {runHours} timer og {runMinutes} minutter frem.
+          </label>
+        </p>
+        <p>
+          <label for="startTine">Hvad tid skal pumpen startes?:</label>
+          <input type="time" id="startTime" class="right" />
+        </p>
+        <label style="font-size: small; font-style: italic">
+          Starttidspunktet vil være første gang tiden passerer dette klokkeslag efter nu, og kan derfor være i morgen. Hvis det ikke
+          udfyldes, betyder det 'nu'.
+        </label>
+        <p>
+          <label for="runFor">Hvor lang tid skal pumpen køre?:</label>
+          <input type="time" id="runFor" class="right" />
+        </p>
+        <label style="font-size: small; font-style: italic">
+          Tiden pumpen skal køre regnes fra den starter, og altså ikke nødvendigvis fra 'nu'
+        </label>
+        <p></p>
+      </form>
+      <button id="btnAutoRunCancel" class="right" onclick="submitAutoRun('cancel')">Aflys</button>
+      <button id="btnAutoRun" class="right" onclick="submitAutoRun('run')">Start</button>
+    </div>
+
+    <div class="plan" style="display: none; border: pink solid 2pt">
+      <h1>Plan</h1>
+      <form id="editPlan">
+        <div>
+          <label for="planStartDate">Plan starter</label>
+          <input type="date" id="planStartDate" />
+        </div>
+        <div class="planElement">
+          <h4 style="margin: 3px">Trin 1</h4>
+          <p style="padding-left: 10px">
+            Ventil position:
+            <label for="rdo_aflob1">Afløb</label>
+            <input type="radio" id="rdo_aflob1" name="ventilPos1" value="AFLOB" checked="true" />
+            <label for="rdo_gade1">Gade</label>
+            <input type="radio" id="rdo_gade1" name="ventilPos1" value="GADE" />
+          </p>
+          <p style="padding-left: 10px">
+            <label for="startTime1">Pumpe: Start</label>
+            <input type="time" id="startTime1" />
+            <label for="endTime1">Slut</label>
+            <input type="time" id="endTime1" />
+          </p>
+        </div>
+        <div class="planElement">
+          <h4 style="margin: 3px">Trin 2</h4>
+          <p style="padding-left: 10px">
+            Ventil position:
+            <label for="rdo_aflob2">Afløb</label>
+            <input type="radio" id="rdo_aflob2" name="ventilPos2" value="AFLOB" checked="true" />
+            <label for="rdo_gade1">Gade</label>
+            <input type="radio" id="rdo_gade2" name="ventilPos2" value="GADE" />
+          </p>
+          <p style="padding-left: 10px">
+            <label for="startTime2">Pumpe: Start</label>
+            <input type="time" id="startTime2" />
+            <label for="endTime2">Slut</label>
+            <input type="time" id="endTime2" />
+          </p>
+        </div>
+        <div class="planElement">
+          <h4 style="margin: 3px">Trin 3</h4>
+          <p style="padding-left: 10px">
+            Ventil position:
+            <label for="rdo_aflob3">Afløb</label>
+            <input type="radio" id="rdo_aflob3" name="ventilPos3" value="AFLOB" checked="true" />
+            <label for="rdo_gade1">Gade</label>
+            <input type="radio" id="rdo_gade3" name="ventilPos3" value="GADE" />
+          </p>
+          <p style="padding-left: 10px">
+            <label for="startTime3">Pumpe: Start</label>
+            <input type="time" id="startTime3" />
+            <label for="endTime3">Slut</label>
+            <input type="time" id="endTime3" />
+          </p>
+        </div>
+      </form>
+      <div>
+        <button id="btnPlanCancel" class="right" onclick="sendPlan('cancel')">Afbryd Plan</button>
+        <button id="btnPlanRun" class="right" onclick="sendPlan('run')">Kør Plan</button>
+        <button id="btnPlanCheck" class="right" onclick="sendPlan('check')">Check Plan</button>
+      </div>
+    </div>
+
+    <div class="text" style="display: none">
+      <h3>System info:</h3>
+      <section class="sysinfo">
+        <fieldset class="sysinfo-fieldset">
+          <legend>Network</legend>
+          <label class="sysinfo-label" for="si-mac">MAC address:</label><input id="si-mac" readonly /><br />
+          <label class="sysinfo-label" for="si-ip">IP address:</label><input id="si-ip" readonly />
+        </fieldset>
+        <fieldset class="sysinfo-fieldset">
+          <legend>State</legend>
+          fffff fffff
+        </fieldset>
+      </section>
+    </div>
+
+    <div class="log">
+      <h3>Log:</h3>
+      <button onclick="loadDataTo('/api/log','logText')">Load</button>
+      <textarea class="logText" rows="20" cols="132" id="logText"></textarea>
+    </div>
+  </body>
+</html>
